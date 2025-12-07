@@ -123,7 +123,7 @@ CREATE TABLE Seance (
 ```
 ### 4. Modélisation des données
 #### Diagramme UML
-<img src="./Diagrammes/Untitled Diagram.drawio.svg">
+<img src="./Untitled Diagram.drawio.svg">
 
 #### Implémentation des Types Objets
 Il faut dabord créer des types incoplets pour eviter le problème de dépendence entre Département et Enseignant.
@@ -257,3 +257,4 @@ Déja fait normalement...
 ### 9. Mesure & comparaison de temps de réponse
 
 ### 10. Questions
+

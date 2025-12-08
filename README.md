@@ -129,23 +129,26 @@ CREATE TABLE Seance (
 Il faut dabord créer des types incoplets pour eviter le problème de dépendence entre Département et Enseignant.
 ```SQL
 CREATE TYPE T_Enseignant;
+/
 ```
 
 ##### a. Département
 ```SQL
-CREATE TYPE T_Departement AS OBJECT (
+CREATE OR REPLACE TYPE T_Departement AS OBJECT (
     DepID       NUMBER,
     DepDesig    VARCHAR2(100),
     Chef        REF T_Enseignant
 );
+/
 ```
 ##### b. Salle
 - Clé composée de Salle
 ```SQL
-CREATE TYPE T_ID_Salle AS OBJECT (
+CREATE OR REPLACE TYPE T_ID_Salle AS OBJECT (
     SID NUMBER,
     DepID NUMBER
 );
+/
 ```
 - Type salle
 ```SQL
@@ -157,6 +160,7 @@ CREATE TYPE T_Salle AS OBJECT (
     Setage      VARCHAR2(20),
     Sbloc       VARCHAR2(20)
 );
+/
 ```
 
 ##### c. Personne
@@ -171,6 +175,7 @@ CREATE OR REPLACE TYPE T_Personne AS OBJECT (
     Email       VARCHAR2(100),
     Nss         VARCHAR2(50)
 ) NOT FINAL;
+/
 ```
 
 ##### d. Enseignant
@@ -182,7 +187,8 @@ CREATE OR REPLACE TYPE T_Enseignant UNDER T_Personne (
     EnsTitre    VARCHAR2(50),
     Departement REF T_Departement
 
-); 
+);
+/
 ```
 
 ##### e. Etudiant
@@ -195,6 +201,7 @@ CREATE OR REPLACE TYPE T_Etudiant UNDER T_Personne (
     Departement REF T_Departement
 
 );
+/
 ```
 
 #### Création des Tables Objets
@@ -203,41 +210,73 @@ CREATE OR REPLACE TYPE T_Etudiant UNDER T_Personne (
 -- Table pour stocker Département
 CREATE TABLE Departements OF T_Departement
     (CONSTRAINT pk_dept PRIMARY KEY (DepID));
+```
 
 
--- Table pour stocker Personne, Enseignant & Etudiant
+##### Table pour stocker Personne, Enseignant & Etudiant
+```SQL
 CREATE TABLE Personnes OF T_Personne
     (
-        CONSTRAINT pk_personne PRIMARY KEY (ID),
+        CONSTRAINT pk_personne PRIMARY KEY (ID)
         -- Création d'un index pour les références (REF) (donne erreur, marche sans)
         --SCOPE FOR (Departement) IS Departements
     )
     -- Permet de stocker les sous-types (Etudiant, Enseignant)
     OBJECT IDENTIFIER IS PRIMARY KEY;
+```
 
--- Mettre à jour la table Departement pour que la référence de Chef pointe vers Personnes
+##### Mettre à jour la table Departement pour que la référence de Chef pointe vers Personnes
+```SQL 
 ALTER TABLE Departements ADD (
     SCOPE FOR (Chef) IS Personnes
 );
+```
 
--- Table pour stocker Salle
+##### Table pour stocker Salle
+```SQL
 CREATE TABLE Salles OF T_Salle
     -- La PK est un champ composite dans le type
     (CONSTRAINT pk_salle_obj PRIMARY KEY (SalleID.SID, SalleID.DepID));
+```
 
--- Table Seance (Table d'Association)
+##### Table Seance (Table d'Association)
+```SQL
 -- On utilise ici des REF pour pointer vers les objets Enseignant, Etudiant, Salle
+-- CREATE TABLE Seances (
+--     ScID        NUMBER PRIMARY KEY,
+--     EnsRef      REF T_Enseignant REFERENCES Personnes,
+--     EtudRef     REF T_Etudiant REFERENCES Personnes,
+--     SalleRef    REF T_Salle REFERENCES Salles,
+--     ScType      VARCHAR2(10),
+--     ScJour      VARCHAR2(20),
+--     ScCreneau   VARCHAR2(20),
+--     Descrip     VARCHAR2(100),
+--     -- Contrainte d'unicité sur l'ensemble pour éviter les doublons de planning
+--     CONSTRAINT uq_seance UNIQUE (EnsRef, ScJour, ScCreneau, SalleRef)
+-- );
+
+
 CREATE TABLE Seances (
     ScID        NUMBER PRIMARY KEY,
-    EnsRef      REF T_Enseignant REFERENCES Personnes,
-    EtudRef     REF T_Etudiant REFERENCES Personnes,
-    SalleRef    REF T_Salle REFERENCES Salles,
+    -- Remplacer REF T_Enseignant par EnsID (NUMBER)
+    EnsID       NUMBER NOT NULL, 
+    -- Remplacer REF T_Etudiant par EtudID (NUMBER)
+    EtudID      NUMBER NOT NULL, 
+    -- Remplacer REF T_Salle par SalleID (Le type T_ID_Salle était NUMBER, on prend juste l'ID)
+    SalleID     NUMBER, 
     ScType      VARCHAR2(10),
     ScJour      VARCHAR2(20),
     ScCreneau   VARCHAR2(20),
-    Descrip     VARCHAR2(100)
-    -- Contrainte d'unicité sur l'ensemble pour éviter les doublons de planning
-    CONSTRAINT uq_seance UNIQUE (EnsRef, ScJour, ScCreneau, SalleRef)
+    Descrip     VARCHAR2(100),
+    -- Contrainte d'unicité utilisant les IDs (NUMBER)
+    CONSTRAINT uq_seance UNIQUE (EnsID, ScJour, ScCreneau, SalleID), 
+    -- Ajout des contraintes de clé étrangère (FK)
+    -- L'EnsID et l'EtudID doivent exister dans la table Personnes
+    CONSTRAINT fk_seance_ens_obj FOREIGN KEY (EnsID) REFERENCES Personnes (ID),
+    CONSTRAINT fk_seance_etud_obj FOREIGN KEY (EtudID) REFERENCES Personnes (ID)
+    -- NOTE : La FK vers Salle est plus complexe car Salle a une PK composite/objet.
+    -- Si Salles a une PK simple (SID), cette FK fonctionnerait:
+    -- CONSTRAINT fk_seance_salle FOREIGN KEY (SalleID) REFERENCES Salles (SID)
 );
 ```
 
@@ -257,4 +296,3 @@ Déja fait normalement...
 ### 9. Mesure & comparaison de temps de réponse
 
 ### 10. Questions
-
